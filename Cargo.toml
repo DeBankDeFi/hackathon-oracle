@@ -1,0 +1,42 @@
+[package]
+name = "node-oracle-demo"
+version = "2.0.0"
+authors = ["Dapppub"]
+build = "build.rs"
+edition = "2018"
+
+[[bin]]
+name = "node-oracle-demo"
+path = "src/main.rs"
+
+[dependencies]
+derive_more = "0.14.0"
+futures = "0.1"
+ctrlc = { version = "3.0", features = ["termination"] }
+log = "0.4"
+tokio = "0.1"
+exit-future = "0.1"
+parking_lot = "0.9.0"
+codec = { package = "parity-scale-codec", version = "1.0.0" }
+trie-root = "0.15.2"
+
+sr-io = { git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+substrate-cli = { git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+substrate-executor = { git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+substrate-service = { git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+substrate-client = { git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+
+primitives = { package = "substrate-primitives", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+inherents = { package = "substrate-inherents", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+transaction-pool = { package = "substrate-transaction-pool", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+network = { package = "substrate-network", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+babe = { package = "substrate-consensus-babe", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+babe-primitives = { package = "substrate-consensus-babe-primitives", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+grandpa-primitives = { package = "substrate-finality-grandpa-primitives", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+basic-authorship = { package = "substrate-basic-authorship", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+grandpa = { package = "substrate-finality-grandpa", git = "https://github.com/paritytech/substrate",  branch = "polkadot-master" }
+
+node-template-runtime = { path = "runtime" }
+
+[build-dependencies]
+vergen = "3"
