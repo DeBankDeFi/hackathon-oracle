@@ -2104,6 +2104,7 @@ dependencies = [
 name = "node-template-runtime"
 version = "2.0.0"
 dependencies = [
+ "oracle 2.0.0",
  "parity-scale-codec 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "safe-mix 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.100 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2243,6 +2244,24 @@ dependencies = [
  "libc 0.2.62 (registry+https://github.com/rust-lang/crates.io-index)",
  "pkg-config 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "vcpkg 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "oracle"
+version = "2.0.0"
+dependencies = [
+ "parity-scale-codec 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "safe-mix 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.100 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sr-io 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sr-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "sr-std 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "srml-balances 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "srml-indices 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "srml-support 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "srml-system 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "srml-timestamp 2.0.0 (git+https://github.com/paritytech/substrate)",
+ "substrate-primitives 2.0.0 (git+https://github.com/paritytech/substrate)",
 ]
 
 [[package]]

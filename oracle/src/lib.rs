@@ -1,29 +1,39 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![feature(vec_remove_item)]
 
-use support::{decl_event, decl_module, decl_storage, dispatch::Result, StorageValue};
+use support::{decl_event, decl_module, decl_storage, dispatch::Result, StorageMap, StorageValue};
 use system::{ensure_signed, ensure_root};
-use support::traits::{Get, ChangeMembers};
-use sr_primitives::traits::{EnsureOrigin, CheckedSub, CheckedAdd, Zero};
+use support::traits::{Get, ChangeMembers, Currency, LockableCurrency, ReservableCurrency, LockIdentifier, WithdrawReasons};
+use sr_primitives::traits::{EnsureOrigin, CheckedSub, CheckedAdd, Zero, Bounded};
 use rstd::prelude::*;
+use codec::{Encode, Decode};
 
 #[cfg(test)]
 mod oracle_test;
 
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
+const LockedId: LockIdentifier = *b"oracle  ";
 
-pub trait Trait: system::Trait + balances::Trait {
+pub trait Trait: system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
-    type OracleFee: Get<Self::Balance>;
-    type MissReportSlash: Get<Self::Balance>;
-    type MaliciousSlash: Get<Self::Balance>;
-    type MinStaking: Get<Self::Balance>;
+    type Currency:
+        LockableCurrency<Self::AccountId, Moment=Self::BlockNumber>
+        + ReservableCurrency<Self::AccountId>;
+
+
+    type OracleFee: Get<BalanceOf<Self>>;
+    type MissReportSlash: Get<BalanceOf<Self>>;
+    type MaliciousSlash: Get<BalanceOf<Self>>;
+    type MinStaking: Get<BalanceOf<Self>>;
 
     type MaliciousSlashOrigin: EnsureOrigin<Self::Origin>;
 
-    type Count: Get<u32>;
+    type Count: Get<u16>;
 
     type ReportInteval: Get<Self::BlockNumber>;
     type EraDuration: Get<Self::BlockNumber>;
+    type LockedDuration: Get<Self::BlockNumber>;
 
     type ChangeMembers: ChangeMembers<Self::AccountId>;
 }
@@ -32,11 +42,34 @@ pub trait OnWitnessed<T: Trait> {
     fn on_witnessed(who: &T::AccountId);
 }
 
+#[derive(PartialEq, Eq, Clone, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Unbind<Balance, BlockNumber> {
+    amount: Balance,
+    era: BlockNumber,
+}
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Ledger<Balance: Default, BlockNumber> {
+    active: Balance,
+    unbonds: Vec<Unbind<Balance, BlockNumber>>,
+}
+
+impl<Balance: Default, BlockNumber> Default for Ledger<Balance, BlockNumber>{
+    fn default() -> Self{
+        Ledger{
+            active: Balance::default(),
+            unbonds: vec![],
+        }
+    }
+}
+
 decl_storage! {
     trait Store for Module<T: Trait> as OracleStorage {
         Oracles get(oracles): Vec<T::AccountId>;
-        OracleStakes get(oracle_stakes): map T::AccountId => T::Balance;
-        Unbinding get(unbinding): map T::AccountId => T::Balance;
+        OracleLedger get(oracle_ledger): map T::AccountId => Ledger<BalanceOf<T>, T::BlockNumber>;
+        //Unbinding get(unbinding): map T::AccountId => BalanceOf<T>;
 
         WitnessReport get(witness_report): map T::AccountId => T::BlockNumber;
 
@@ -50,59 +83,36 @@ decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        const OracleFee: T::Balance = T::OracleFee::get();
-        const MissReportSlash: T::Balance = T::MissReportSlash::get();
-        const MaliciousSlash: T::Balance = T::MaliciousSlash::get();
-        const MinStaking: T::Balance = T::MinStaking::get();
-        const Count: u32 = T::Count::get();
+        const OracleFee: BalanceOf<T> = T::OracleFee::get();
+        const MissReportSlash: BalanceOf<T> = T::MissReportSlash::get();
+        const MaliciousSlash: BalanceOf<T> = T::MaliciousSlash::get();
+        const MinStaking: BalanceOf<T> = T::MinStaking::get();
+        const Count: u16 = T::Count::get();
         const EraDuration: T::BlockNumber = T::EraDuration::get();
         const ReportInteval: T::BlockNumber = T::ReportInteval::get();
+        const LockedDuration: T::BlockNumber = T::LockedDuration::get();
 
 
-        pub fn bid(origin, staking: T::Balance) -> Result{
+        pub fn bid(origin, amount: BalanceOf<T>) -> Result{
             let who = ensure_signed(origin)?;
-            // Sub amount in T::Balance
-            let already_staked = Self::oracle_stakes(&who);
-            let new_staked = already_staked.checked_add(&staking).ok_or("Error calculating new staking")?;
-
-            T::OracleStakes::insert(&who, new_staked);
-            let candidates = Self::candidates();
-            if !candidates.contains(&who) {
-                candidates.push(who.clone());
-                T::OracleCandidates::put(candidates);
-                Self::deposit_event(RawEvent::CandidatesAdded(who.clone()));
-            }
-            Self::deposit_event(RawEvent::OracleBonded(who.clone(), staking));
+            Self::bind(&who, amount)?;
+            Self::add_candidates(&who)?;
             Ok(())
         }
 
-        pub fn slash(origin, who: T::AccountId, amount: T::Balance) -> Result{
+        pub fn slash_by_vote(origin, who: T::AccountId, amount: BalanceOf<T>) -> Result{
             T::MaliciousSlashOrigin::try_origin(origin)
                 .map(|_| ())
                 .or_else(ensure_root)
                 .map_err(|_| "bad origin")?;
-
-            let already_staked = Self::oracle_stakes(&who);
-            let new_staked = already_staked.checked_sub(&amount).ok_or("Error calculating new staking")?;
-            T::OracleStakes::insert(&who, new_staked);
+            T::Currency::slash(&who, amount);
+            Self::deposit_event(RawEvent::OracleSlashed(who, amount));
             Ok(())
         }
 
-        pub fn unbond(origin, staking: T::Balance) -> Result{
+        pub fn unbond(origin, amount: BalanceOf<T>) -> Result{
             let who = ensure_signed(origin)?;
-
-            let already_staked = Self::oracle_stakes(&who);
-            if staking > already_staked {
-                return Err("staking amount is smaller than unbonding amount");
-            }
-
-            let already_unbonding = Self::Unbinding(&who);
-            let new_unbonding = already_unbonding.checked_add(&staking).ok_or("error calculating new unbonding")?;
-            let new_staked = already_staked.checked_sub(&new_unbonding).ok_or("Error calculating new staking")?;
-
-            T::Unbinding::insert(&who, new_unbonding);
-            Self::deposit_event(RawEvent::OracleUnbonded(who.clone(), staking));
-            Ok(())
+            Self::unbind(&who, amount)
         }
     }
 }
@@ -111,10 +121,10 @@ impl<T: Trait> Module<T>{
     pub fn on_finalize(block_number: T::BlockNumber) {
         Self::slash_oracles(block_number);
 
-        let current_era = T::current_era();
-        if block_number >= current_era + T::EraDuration{
+        let current_era = Self::current_era();
+        if block_number >= current_era + T::EraDuration::get(){
             Self::elect_oracles();
-            T::CurrentEr::put(current_era+T::EraDuration);
+            <CurrentEra<T>>::put(current_era+T::EraDuration::get());
         }
     }
 
@@ -122,9 +132,9 @@ impl<T: Trait> Module<T>{
         let current_oracles = Self::oracles();
 
         current_oracles.iter().for_each(|o| {
-            let last_report_height = Self::witness_report(&o);
-            if block_number > last_report_height + Self::ReportInteval{
-                Self::slash_oracle(&o);
+            let last_report_height = Self::witness_report(o);
+            if block_number > last_report_height + T::ReportInteval::get(){
+                Self::slash(o, T::MissReportSlash::get());
             }
         });
     }
@@ -132,59 +142,114 @@ impl<T: Trait> Module<T>{
     fn elect_oracles(){
         let current_oracles = Self::oracles();
         let new_candidates = Self::candidates();
-        let all_candidates: Vec<T::AccountId> = Vec::new();
+        let mut all_candidates: Vec<T::AccountId> = Vec::new();
 
         all_candidates.extend(new_candidates);
-        all_candidates.extend(current_oracles);
+        all_candidates.extend(current_oracles.clone());
 
-        let all_candidates = all_candidates.iter().map(|a| {
-            let unbonding = Self::unbinding(&a);
-            (a, unbonding, Self::oracle_stakes(&a).checked_sub(&unbonding))
+        let all_candidates: Vec<(&T::AccountId, Ledger<BalanceOf<T>, T::BlockNumber>)> = all_candidates.iter().map(|a| {
+            let ledger = Self::oracle_ledger(a);
+            (a, ledger)
         }).collect();
 
-        all_candidates.iter().for_each(|(a, bonded)|{
-            if bonded > Zero::zero(){
-                // TODO: Add balance
-            }
+        all_candidates.iter().for_each(|(a, ledger)|{
         });
 
-        let all_candidates = all_candidates.iter().
-            filter(|(_, _, bonded)| bonded > Zero::zero()).
-            sort_by(|(_, _, bonded)| bonded).
-            map(|a, _, _| a).
+        let mut all_candidates: Vec<(&T::AccountId, Ledger<BalanceOf<T>, T::BlockNumber>)> = all_candidates.into_iter().
+            filter(|(_, ledger)| ledger.active > Zero::zero()).
             collect();
+        all_candidates.sort_by_key(|(_, ledger)| ledger.active);
 
-        let (chosen_candidates, new_candidates) = all_candidates.split_at(Self::Count);
+        let all_candidates = all_candidates.into_iter().  map(|(a, _)| a.clone()).  collect::<Vec<T::AccountId>>();
+        let (chosen_candidates, new_candidates) = all_candidates.split_at(T::Count::get().into());
+
+        let mut chosen_candidates = chosen_candidates.to_vec();
         chosen_candidates.sort();
 
-        let new_oracles = chosen_candidates.iter().filter(|o| !current_oracles.contains(o)).collect();
-        let outgoing_oracles = current_oracles.iter().filter(|o| !new_oracles.contains(o)).collect();
+        let new_oracles: Vec<T::AccountId> = chosen_candidates.clone().into_iter().filter(|o| !current_oracles.contains(&o)).collect();
+        let outgoing_oracles: Vec<T::AccountId> = current_oracles.into_iter().filter(|o| !new_oracles.contains(&o)).collect();
+        <Oracles<T>>::put(&chosen_candidates); 
         T::ChangeMembers::change_members(&new_oracles, &outgoing_oracles, chosen_candidates);
-        T::Oracles::put(chosen_candidates); 
-        T::OracleCandidates::put(new_candidates);
+        <OracleCandidates<T>>::put(new_candidates.to_vec());
+    }
+}
+
+impl<T:Trait> Module<T>{
+    fn oracle_stakes(who: &T::AccountId) -> BalanceOf<T>{
+        let ledger = Self::oracle_ledger(who);
+        ledger.active
     }
 
-    fn slash_oracle(who: &T::AccountId){
-        let already_staked = Self::oracle_stakes(&who);
-        if already_staked > T::MissReportSlash{
-            let new_staked = already_staked - T::MissReportSlash;
-            T::OracleStakes::insert(&who, new_staked);
-            Self::deposit_event(RawEvent::OracleSlashed(who.clone(), T::MissReportSlash));
-        }else{
-            T::OracleStakes::destroy(&who);
-            let current_oracles = Self::oracles();
+    fn slash(who: &T::AccountId, amount: BalanceOf<T>) -> Result {
+        let free_balance = T::Currency::free_balance(who);
+
+        if free_balance < amount {
+            // Remove this oracle
+            let mut current_oracles = Self::oracles();
             current_oracles.remove_item(&who);
-            T::OracleCandidates::put(current_oracles);
-            T::ChangeMembers::change_members(&[], &[who], current_oracles);
-            Self::deposit_event(RawEvent::OracleSlashed(who.clone(), already_staked));
+            <Oracles <T>>::put(&current_oracles);
+            T::ChangeMembers::change_members(&[], &[who.clone()], current_oracles);
         }
+
+        // Handle imbalance
+        T::Currency::slash(who, amount);
+
+        Self::deposit_event(RawEvent::OracleSlashed(who.clone(), amount));
+        Ok(())
+    }
+
+    fn unbind(who: &T::AccountId, amount: BalanceOf<T>) -> Result{
+        let current_height = <system::Module<T>>::block_number();
+        let mut ledger = Self::oracle_ledger(who);
+
+        if amount > ledger.active {
+            return Err("staking amount is smaller than unbonding amount");
+        }
+
+        let new_unbond = Unbind{
+            amount: amount,
+            era: current_height + T::LockedDuration::get(),
+        };
+
+        ledger.active = ledger.active.checked_sub(&amount).ok_or("Error calculating new staking")?;
+        ledger.unbonds.push(new_unbond);
+
+        <OracleLedger<T>>::insert(who, ledger);
+        Self::deposit_event(RawEvent::OracleUnbonded(who.clone(), amount));
+        Ok(())
+    }
+
+    fn bind(who: &T::AccountId, amount: BalanceOf<T>) -> Result{
+        let mut ledger = Self::oracle_ledger(who);
+        let new_staked = ledger.active.checked_add(&amount).ok_or("Error calculating new staking")?;
+        ledger.active = new_staked;
+        <OracleLedger<T>>::insert(who, ledger);
+        T::Currency::set_lock(
+            LockedId,
+            &who,
+            amount,
+            T::BlockNumber::max_value(),
+            WithdrawReasons::all(),
+        );
+        Self::deposit_event(RawEvent::OracleBonded(who.clone(), amount));
+        Ok(())
+    }
+
+    fn add_candidates(who: &T::AccountId) -> Result{
+        let mut candidates = Self::candidates();
+        if !candidates.contains(&who) {
+            candidates.push(who.clone());
+            <OracleCandidates<T>>::put(candidates);
+            Self::deposit_event(RawEvent::CandidatesAdded(who.clone()));
+        }
+        Ok(())
     }
 }
 
 impl<T:Trait> OnWitnessed<T> for Module<T> {
     fn on_witnessed(who: &T::AccountId){
-        let current_height = T::current_height();
-        Self::WitnessReport::insert(who, current_height);
+        let current_height = <system::Module<T>>::block_number();
+        <WitnessReport<T>>::insert(who, current_height);
     }
 }
 
@@ -192,7 +257,7 @@ decl_event!(
     pub enum Event<T>
     where
         AccountId = <T as system::Trait>::AccountId,
-        Balance = <T as balances::Trait>::Balance,
+        Balance = BalanceOf<T>,
     {
         OracleBonded(AccountId, Balance),
         OracleUnbonded(AccountId, Balance),
