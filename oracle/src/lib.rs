@@ -38,8 +38,9 @@ pub trait Trait: system::Trait {
     type ChangeMembers: ChangeMembers<Self::AccountId>;
 }
 
-pub trait OnWitnessed<T: Trait> {
+pub trait OracleMixedIn<T: system::Trait> {
     fn on_witnessed(who: &T::AccountId);
+    fn is_valid(who: &T::AccountId) -> bool;
 }
 
 #[derive(PartialEq, Eq, Clone, Encode, Decode)]
@@ -69,13 +70,9 @@ decl_storage! {
     trait Store for Module<T: Trait> as OracleStorage {
         Oracles get(oracles): Vec<T::AccountId>;
         OracleLedger get(oracle_ledger): map T::AccountId => Ledger<BalanceOf<T>, T::BlockNumber>;
-        //Unbinding get(unbinding): map T::AccountId => BalanceOf<T>;
-
         WitnessReport get(witness_report): map T::AccountId => T::BlockNumber;
-
         OracleCandidates get(candidates): Vec<T::AccountId>;
         CurrentEra get(current_era): T::BlockNumber;
-        
     }
 }
 
@@ -246,11 +243,17 @@ impl<T:Trait> Module<T>{
     }
 }
 
-impl<T:Trait> OnWitnessed<T> for Module<T> {
+impl<T: Trait> OracleMixedIn<T> for Module<T> {
     fn on_witnessed(who: &T::AccountId){
         let current_height = <system::Module<T>>::block_number();
         <WitnessReport<T>>::insert(who, current_height);
     }
+
+    fn is_valid(who: &T::AccountId) -> bool{
+        let report_height = Self::witness_report(who);
+        report_height + T::ReportInteval::get() >= <system::Module<T>>::block_number()
+    }
+
 }
 
 decl_event!(
