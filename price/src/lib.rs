@@ -15,6 +15,7 @@ type Price = u128;
 
 pub trait Trait: system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+
     type ValidReportDuration: Get<Self::BlockNumber>;
     type OracleMixedIn: OracleMixedIn<Self>;
     type ReportOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
