@@ -3,10 +3,10 @@
 use codec::{Decode, Encode};
 use oracle::OracleMixedIn;
 use rstd::prelude::*;
-use sr_primitives::traits::{Bounded, CheckedAdd, CheckedSub, EnsureOrigin, Zero};
+use sr_primitives::traits::{Bounded, CheckedAdd, CheckedSub, EnsureOrigin, Zero, OnFinalize};
 use support::traits::{
     ChangeMembers, Currency, Get, LockIdentifier, LockableCurrency, ReservableCurrency,
-    WithdrawReasons,
+    WithdrawReasons
 };
 use support::{decl_event, decl_module, decl_storage, dispatch::Result, StorageMap, StorageValue};
 use system::{ensure_root, ensure_signed};
@@ -77,10 +77,9 @@ impl<T: Trait> Module<T> {
         Self::deposit_event(RawEvent::PriceReported(who, price));
         Ok(())
     }
-}
 
-impl<T: Trait> Module<T> {
-    pub fn on_finalize(block_number: T::BlockNumber) {
+    fn on_finalize() {
+        let block_number = <system::Module<T>>::block_number();
         let old_price = Self::current_price();
         let mut prices: Vec<Price> = Self::price_reports().iter().map(|x| x.price).collect();
         let median_price = median(&mut prices);

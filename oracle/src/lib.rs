@@ -111,20 +111,22 @@ decl_module! {
             let who = ensure_signed(origin)?;
             Self::unbind(&who, amount)
         }
+
+        fn on_finalize() {
+            let block_number = <system::Module<T>>::block_number();
+            Self::slash_oracles(block_number);
+
+            let current_era = Self::current_era();
+            if block_number == current_era + T::EraDuration::get(){
+                Self::elect_oracles();
+                <CurrentEra<T>>::put(block_number+T::EraDuration::get());
+            }
+        }
+
     }
 }
 
 impl<T: Trait> Module<T>{
-    pub fn on_finalize(block_number: T::BlockNumber) {
-        Self::slash_oracles(block_number);
-
-        let current_era = Self::current_era();
-        if block_number >= current_era + T::EraDuration::get(){
-            Self::elect_oracles();
-            <CurrentEra<T>>::put(current_era+T::EraDuration::get());
-        }
-    }
-
     fn slash_oracles(block_number: T::BlockNumber){
         let current_oracles = Self::oracles();
 
@@ -143,6 +145,14 @@ impl<T: Trait> Module<T>{
 
         all_candidates.extend(new_candidates);
         all_candidates.extend(current_oracles.clone());
+
+        if all_candidates.len() == 0{
+            return;
+        }
+
+        if all_candidates.len() < T::Count::get().into() {
+            return;
+        }
 
         let all_candidates: Vec<(&T::AccountId, Ledger<BalanceOf<T>, T::BlockNumber>)> = all_candidates.iter().map(|a| {
             let ledger = Self::oracle_ledger(a);
@@ -261,13 +271,13 @@ decl_event!(
     where
         AccountId = <T as system::Trait>::AccountId,
         Balance = BalanceOf<T>,
-    {
-        OracleBonded(AccountId, Balance),
-        OracleUnbonded(AccountId, Balance),
-        OracleSlashed(AccountId, Balance),
+        {
+            OracleBonded(AccountId, Balance),
+            OracleUnbonded(AccountId, Balance),
+            OracleSlashed(AccountId, Balance),
 
-        CandidatesAdded(AccountId),
-        CandidatesRemoved(AccountId),
+            CandidatesAdded(AccountId),
+            CandidatesRemoved(AccountId),
 
-    }
+        }
 );

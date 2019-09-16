@@ -286,7 +286,7 @@ parameter_types! {
     pub const Count: u16 = 3;
 
     pub const ReportInteval: BlockNumber = 5;
-    pub const EraDuration: BlockNumber = 100;
+    pub const EraDuration: BlockNumber = 10;
     pub const LockedDuration: BlockNumber = 1000;
 }
 
