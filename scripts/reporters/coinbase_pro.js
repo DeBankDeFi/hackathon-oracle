@@ -32,7 +32,7 @@ async function main() {
       }
     })
   const keyring = testKeyring.default();
-  let key = keyring.getPair(Alice);
+  let key = keyring.getPair(Charlie);
   let last_reported = null
 
   websocket.on('message', data => {
@@ -44,12 +44,12 @@ async function main() {
 
     let now = moment()
     console.log(moment.duration(now.diff(last_reported)).seconds(), data.type)
-    if(data.type === "ticker" && (last_reported === null || moment.duration(now.diff(last_reported)).seconds() > 60)){
+    if(data.type === "ticker" && (last_reported === null || moment.duration(now.diff(last_reported)).seconds() > 30)){
       console.log("pusing price")
       let price = new BN(new Decimal(data.price).mul(10000).toString())
       let price_report = api.tx.price.report(price)
       api.tx.oracleMembers.execute(price_report).signAndSend(key, ({ events = [], status }) => {
-        console.log("pushed price", price.toString())
+        console.log("pushed price", price.toString(), status.toString(), status.toString())
       })
       last_reported = now
     }

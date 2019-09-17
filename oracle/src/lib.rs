@@ -73,6 +73,7 @@ decl_storage! {
         WitnessReport get(witness_report): map T::AccountId => T::BlockNumber;
         OracleCandidates get(candidates): Vec<T::AccountId>;
         CurrentEra get(current_era): T::BlockNumber;
+        OracleLastRewarded get(oracle_last_rewarded): map T::AccountId => T::BlockNumber;
     }
 }
 
@@ -114,7 +115,7 @@ decl_module! {
 
         fn on_finalize() {
             let block_number = <system::Module<T>>::block_number();
-            Self::slash_oracles(block_number);
+            Self::slash_and_reward_oracles(block_number);
 
             let current_era = Self::current_era();
             if block_number == current_era + T::EraDuration::get(){
@@ -127,13 +128,17 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T>{
-    fn slash_oracles(block_number: T::BlockNumber){
+    fn slash_and_reward_oracles(block_number: T::BlockNumber){
         let current_oracles = Self::oracles();
 
         current_oracles.iter().for_each(|o| {
             let last_report_height = Self::witness_report(o);
             if block_number > last_report_height + T::ReportInteval::get(){
                 Self::slash(o, T::MissReportSlash::get());
+            }else if block_number > Self::oracle_last_rewarded(o) + T::ReportInteval::get() {
+                T::Currency::deposit_into_existing(o, T::OracleFee::get());
+                <OracleLastRewarded<T>>::insert(o, block_number.clone());
+                Self::deposit_event(RawEvent::OraclePaid(o.clone(), T::OracleFee::get()));
             }
         });
     }
@@ -175,6 +180,11 @@ impl<T: Trait> Module<T>{
 
         let new_oracles: Vec<T::AccountId> = chosen_candidates.clone().into_iter().filter(|o| !current_oracles.contains(&o)).collect();
         let outgoing_oracles: Vec<T::AccountId> = current_oracles.into_iter().filter(|o| !new_oracles.contains(&o)).collect();
+
+        let current_height = <system::Module<T>>::block_number();
+        new_oracles.iter().for_each(|o| {
+            <WitnessReport<T>>::insert(o, current_height);
+        });
         <Oracles<T>>::put(&chosen_candidates); 
         T::ChangeMembers::change_members(&new_oracles, &outgoing_oracles, chosen_candidates);
         <OracleCandidates<T>>::put(new_candidates.to_vec());
@@ -275,6 +285,7 @@ decl_event!(
             OracleBonded(AccountId, Balance),
             OracleUnbonded(AccountId, Balance),
             OracleSlashed(AccountId, Balance),
+            OraclePaid(AccountId, Balance),
 
             CandidatesAdded(AccountId),
             CandidatesRemoved(AccountId),

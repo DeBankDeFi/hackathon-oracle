@@ -51,11 +51,13 @@ decl_module! {
             let block_number = <system::Module<T>>::block_number();
             let old_price = Self::current_price();
             let mut prices: Vec<Price> = Self::price_reports().iter().map(|x| x.price).collect();
-            let median_price = median(&mut prices);
+            if prices.len() > 0 {
+                let median_price = median(&mut prices);
 
-            if old_price != median_price {
-                CurrentPrice::put(median_price);
-                Self::deposit_event(RawEvent::PriceChanged(median_price));
+                if old_price != median_price {
+                    CurrentPrice::put(median_price);
+                    Self::deposit_event(RawEvent::PriceChanged(median_price));
+                }
             }
 
             let reports: Vec<PriceReport<T::AccountId>> = Self::price_reports()
@@ -107,6 +109,10 @@ fn mean(numbers: &Vec<Price>) -> Price {
 
 fn median(numbers: &mut Vec<Price>) -> Price {
     numbers.sort();
+
+    if numbers.len() == 1{
+        return numbers[0];
+    }
 
     let mid = numbers.len() / 2;
     if numbers.len() % 2 == 0 {
