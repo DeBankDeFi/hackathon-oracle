@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@polkadot/api": "^0.92.1",
+    "coinbase-pro": "^0.9.0",
+    "decimal.js": "^10.2.0"
+  }
+}
