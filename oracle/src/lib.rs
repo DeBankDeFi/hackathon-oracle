@@ -192,26 +192,27 @@ impl<T: Trait> Module<T>{
 }
 
 impl<T:Trait> Module<T>{
-    fn oracle_stakes(who: &T::AccountId) -> BalanceOf<T>{
-        let ledger = Self::oracle_ledger(who);
-        ledger.active
-    }
 
     fn slash(who: &T::AccountId, amount: BalanceOf<T>) -> Result {
-        let free_balance = T::Currency::free_balance(who);
+        let mut ledger = Self::oracle_ledger(who);
 
-        if free_balance < amount {
+        let slash_amount = if amount > ledger.active {
             // Remove this oracle
             let mut current_oracles = Self::oracles();
             current_oracles.remove_item(&who);
             <Oracles <T>>::put(&current_oracles);
             T::ChangeMembers::change_members(&[], &[who.clone()], current_oracles);
-        }
+            ledger.active
+        } else {
+            amount
+        };
 
         // Handle imbalance
         T::Currency::slash(who, amount);
+        ledger.active = ledger.active.checked_sub(&slash_amount).ok_or("Error calculating new staking")?;
+        <OracleLedger<T>>::insert(who, ledger);
 
-        Self::deposit_event(RawEvent::OracleSlashed(who.clone(), amount));
+        Self::deposit_event(RawEvent::OracleSlashed(who.clone(), slash_amount));
         Ok(())
     }
 
