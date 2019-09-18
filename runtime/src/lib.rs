@@ -279,7 +279,7 @@ impl price::Trait for Runtime {
 
 parameter_types! {
     pub const OracleFee: Balance = 1 * DOLLARS;
-    pub const MissReportSlash: Balance = 100 * DOLLARS;
+    pub const MissReportSlash: Balance = 1 * DOLLARS;
     pub const MaliciousSlash: Balance = 1000 * DOLLARS;
     pub const MinStaking: Balance = 1000 * DOLLARS;
 
