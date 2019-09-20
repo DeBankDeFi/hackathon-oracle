@@ -9,8 +9,6 @@ const [Alice, Charlie, BOB] = ["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY
 const snooze = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main() {
-  let changed = false
-
   const client = Binance()
   const provider = new WsProvider('wss://test-api.debank.io:2053/oracle/');
   const api = await ApiPromise.create(
@@ -36,30 +34,23 @@ async function main() {
   let last_reported = null
 
   client.ws.ticker('BTCUSDT', data => {
-    if(!changed){
-      websocket.unsubscribe({ channels: ['full'] })
-      websocket.subscribe({ product_ids: ['BTC-USD'], channels: ['ticker'] })
-      changed=true
-    }
-
     let now = moment()
     console.log(moment.duration(now.diff(last_reported)).seconds(), data.eventType)
-    if(data.eventType === "eventType" && (last_reported === null || moment.duration(now.diff(last_reported)).seconds() > 30)){
-      console.log("pusing price")
-      let price = new BN(new Decimal(data.weightedAvg).mul(10000).toString())
+    if(data.eventType === "24hrTicker" && (last_reported === null || moment.duration(now.diff(last_reported)).seconds() > 30)){
+      console.log("pusing price", data.curDayClose.toString(), data)
+      let price = new BN(new Decimal(data.curDayClose.toString()).mul(10000).round().toString())
+      console.log("pusing price--", price.toString())
       let price_report = api.tx.price.report(price)
       api.tx.oracleMembers.execute(price_report).signAndSend(key, ({ events = [], status }) => {
         console.log("pushed price", price.toString(), status.toString(), status.toString())
       })
       last_reported = now
     }
-  });
 
-  websocket.on('error', err => {
-  });
-  websocket.on('close', () => {
-  });
 
+
+
+  });
   while(true){
     await snooze(100000)
   }
