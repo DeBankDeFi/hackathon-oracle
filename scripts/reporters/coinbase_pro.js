@@ -12,7 +12,7 @@ async function main() {
   let changed = false
 
   const websocket = new CoinbasePro.WebsocketClient(['BTC-USD']);
-  const provider = new WsProvider('ws://127.0.0.1:9944');
+  const provider = new WsProvider('wss://test-api.debank.io:2053/oracle/');
   const api = await ApiPromise.create(
     { provider,
       types: {
@@ -32,7 +32,7 @@ async function main() {
       }
     })
   const keyring = testKeyring.default();
-  let key = keyring.getPair(Charlie);
+  let key = keyring.getPair(Alice);
   let last_reported = null
 
   websocket.on('message', data => {

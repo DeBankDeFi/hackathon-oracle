@@ -3,6 +3,7 @@
     "@polkadot/api": "^0.92.1",
     "binance-api-node": "^0.9.5",
     "coinbase-pro": "^0.9.0",
-    "decimal.js": "^10.2.0"
+    "decimal.js": "^10.2.0",
+    "node-bitstamp": "^2.3.0"
   }
 }
