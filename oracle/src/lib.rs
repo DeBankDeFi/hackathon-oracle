@@ -273,7 +273,7 @@ impl<T: Trait> Module<T> {
             amount
         };
 
-        // Handle imbalance
+        // TODO: Handle imbalance
         T::Currency::slash(who, amount);
         ledger.active = ledger
             .active
