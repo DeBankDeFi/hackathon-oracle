@@ -266,13 +266,8 @@ impl collective::Trait<OracleCollective> for Runtime {
     type Event = Event;
 }
 
-parameter_types! {
-    pub const ValidReportDuration: BlockNumber = 100;
-}
-
 impl price::Trait for Runtime {
     type Event = Event;
-    type ValidReportDuration = ValidReportDuration;
     type OracleMixedIn = Oracle;
     type ReportOrigin = collective::EnsureMember<AccountId, OracleCollective>;
 }
@@ -280,7 +275,6 @@ impl price::Trait for Runtime {
 parameter_types! {
     pub const OracleFee: Balance = 1 * DOLLARS;
     pub const MissReportSlash: Balance = 1 * DOLLARS;
-    pub const MaliciousSlash: Balance = 1000 * DOLLARS;
     pub const MinStaking: Balance = 1000 * DOLLARS;
 
     pub const Count: u16 = 3;
@@ -297,7 +291,6 @@ impl oracle::Trait for Runtime {
 
     type OracleFee = OracleFee;
     type MissReportSlash = MissReportSlash;
-    type MaliciousSlash = MaliciousSlash;
     type MinStaking = MinStaking;
 
     type MaliciousSlashOrigin =

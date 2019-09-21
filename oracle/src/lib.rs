@@ -143,7 +143,7 @@ decl_module! {
         /// unbind amount.
         pub fn unbind(origin, amount: BalanceOf<T>) -> Result{
             let who = ensure_signed(origin)?;
-            Self::unbind(&who, amount)
+            Self::oracle_unbind(&who, amount)
         }
 
         /// Actions when finalizing a block:
@@ -322,7 +322,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn unbind(who: &T::AccountId, amount: BalanceOf<T>) -> Result {
+    fn oracle_unbind(who: &T::AccountId, amount: BalanceOf<T>) -> Result {
         let current_height = <system::Module<T>>::block_number();
         let mut ledger = Self::oracle_ledger(who);
 

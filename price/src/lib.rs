@@ -16,7 +16,6 @@ type Price = u128;
 pub trait Trait: system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
-    type ValidReportDuration: Get<Self::BlockNumber>;
     type OracleMixedIn: OracleMixedIn<Self>;
     type ReportOrigin: EnsureOrigin<Self::Origin, Success = Self::AccountId>;
 }
@@ -38,8 +37,6 @@ decl_storage! {
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
-
-        const ValidReportDuration: T::BlockNumber = T::ValidReportDuration::get();
 
         pub fn report(origin, price: Price) -> Result{
             let who = T::ReportOrigin::ensure_origin(origin)?;
