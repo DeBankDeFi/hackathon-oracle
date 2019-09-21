@@ -20,29 +20,48 @@ const LockedId: LockIdentifier = *b"oracle  ";
 pub trait Trait: system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
+    /// Currency type
     type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>
         + ReservableCurrency<Self::AccountId>;
 
+    /// The amount of fee that should be paid to each oracle during each reporting cycle.
     type OracleFee: Get<BalanceOf<Self>>;
+
+    /// The amount that'll be slashed if one oracle missed its reporting window.
     type MissReportSlash: Get<BalanceOf<Self>>;
+
+    /// The minimum amount to stake for an oracle candidate.
     type MinStaking: Get<BalanceOf<Self>>;
 
+    /// The origin that's responsible for slashing malicious oracles.
     type MaliciousSlashOrigin: EnsureOrigin<Self::Origin>;
 
+    /// The maxium count of working oracles.
     type Count: Get<u16>;
 
+    /// The duration in which oracles should report and be paid.
     type ReportInteval: Get<Self::BlockNumber>;
+
+    /// The duration between oracle elections.
     type ElectionEra: Get<Self::BlockNumber>;
+
+    /// The locked time of staked amount.
     type LockedDuration: Get<Self::BlockNumber>;
 
+    /// The actual oracle membership management type. (Usually the `srml_collective::Trait`)
     type ChangeMembers: ChangeMembers<Self::AccountId>;
 }
 
+/// Business module should use this trait to
+/// communicate with oracle module in order to decouple them.
 pub trait OracleMixedIn<T: system::Trait> {
+    /// Tell oracle module that an event is reported by a speicifc oracle.
     fn on_witnessed(who: &T::AccountId);
+    /// Predicate if one oracle is valid.
     fn is_valid(who: &T::AccountId) -> bool;
 }
 
+/// Unbind record for when an oracle is unbinding.
 #[derive(PartialEq, Eq, Clone, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Unbind<Balance, BlockNumber> {
@@ -50,6 +69,7 @@ pub struct Unbind<Balance, BlockNumber> {
     era: BlockNumber,
 }
 
+/// The ledger of oracle's staked token.
 #[derive(PartialEq, Eq, Clone, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Ledger<Balance: Default, BlockNumber> {
@@ -68,11 +88,22 @@ impl<Balance: Default, BlockNumber> Default for Ledger<Balance, BlockNumber> {
 
 decl_storage! {
     trait Store for Module<T: Trait> as OracleStorage {
+        /// Acting oracles.
         Oracles get(oracles): Vec<T::AccountId>;
+
+        /// Staking ledger of oracle/candidates.
         OracleLedger get(oracle_ledger): map T::AccountId => Ledger<BalanceOf<T>, T::BlockNumber>;
+
+        /// Blockstamp of each oracle's last event report.
         WitnessReport get(witness_report): map T::AccountId => T::BlockNumber;
+
+        /// Oracle candidates.
         OracleCandidates get(candidates): Vec<T::AccountId>;
+
+        /// Current election era.
         CurrentEra get(current_era): T::BlockNumber;
+
+        /// Oracle reward records.
         OracleLastRewarded get(oracle_last_rewarded): map T::AccountId => T::BlockNumber;
     }
 }
@@ -89,7 +120,7 @@ decl_module! {
         const ReportInteval: T::BlockNumber = T::ReportInteval::get();
         const LockedDuration: T::BlockNumber = T::LockedDuration::get();
 
-
+        /// bind amount to list as oraclce candidates.
         pub fn bid(origin, amount: BalanceOf<T>) -> Result{
             let who = ensure_signed(origin)?;
 
@@ -98,6 +129,7 @@ decl_module! {
             Ok(())
         }
 
+        /// slash oracle by third parties.
         pub fn slash_by_vote(origin, who: T::AccountId, amount: BalanceOf<T>) -> Result{
             T::MaliciousSlashOrigin::try_origin(origin)
                 .map(|_| ())
@@ -108,11 +140,16 @@ decl_module! {
             Ok(())
         }
 
+        /// unbind amount.
         pub fn unbind(origin, amount: BalanceOf<T>) -> Result{
             let who = ensure_signed(origin)?;
             Self::unbind(&who, amount)
         }
 
+        /// Actions when finalizing a block:
+        ///     1. Slash/reward oracles at end of eacch block.
+        ///     2. Start an election at the right moment.
+        ///     3. Release dued locked stake.
         fn on_finalize() {
             let block_number = <system::Module<T>>::block_number();
             Self::slash_and_reward_oracles(block_number);
@@ -361,14 +398,21 @@ decl_event!(
         AccountId = <T as system::Trait>::AccountId,
         Balance = BalanceOf<T>,
     {
+        /// Amount bonded by one oracle.
         OracleBonded(AccountId, Balance),
+        /// Amount unbonded by one oracle.
         OracleUnbonded(AccountId, Balance),
+        /// Amount slashed to one oracle.
         OracleSlashed(AccountId, Balance),
+        /// Amount paid to one oracle.
         OraclePaid(AccountId, Balance),
 
+        /// Candidate added.
         CandidatesAdded(AccountId),
+        /// Candidate remove.
         CandidatesRemoved(AccountId),
 
+        /// Amount unlocked for one oracle.
         OracleStakeReleased(AccountId, Balance),
     }
 );
