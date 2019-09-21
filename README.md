@@ -21,16 +21,16 @@ An oracle module for substrate, used together with `srml_collective`.
 
 ### Parameters
 
-* Currency: Currency type.
-* OracleFee: The amount of fee that should be paid to each oracle during each reporting cycle.
-* MissReportSlash: The amount that'll be slashed if one oracle missed its reporting window.
-* MinStaking: The minimum amount to stake for an oracle candidate.
-* MaliciousSlashOrigin: The origin that's responsible for slashing malicious oracles.
-* Count: The maxium count of working oracles.
-* ReportInteval: The duration in which oracles should report and be paid.
-* ElectionEra: The duration between oracle elections.
-* LockedDuration: The locked time of staked amount.
-* ChangeMembers: The actual oracle membership management type. (Usually the `srml_collective::Trait`)
+* `Currency`: Currency type.
+* `OracleFee`: The amount of fee that should be paid to each oracle during each reporting cycle.
+* `MissReportSlash`: The amount that'll be slashed if one oracle missed its reporting window.
+* `MinStaking`: The minimum amount to stake for an oracle candidate.
+* `MaliciousSlashOrigin`: The origin that's responsible for slashing malicious oracles.
+* `Count`: The maxium count of working oracles.
+* `ReportInteval`: The duration in which oracles should report and be paid.
+* `ElectionEra`: The duration between oracle elections.
+* `LockedDuration`: The locked time of staked amount.
+* `ChangeMembers`: The actual oracle membership management type. (Usually the `srml_collective::Trait`)
 
 
 ### Extrinsics
@@ -51,12 +51,12 @@ pub trait OracleMixedIn<T: system::Trait> {
 ### Storage
 
 ```
-Oracles: acting oracles.
-OracleLedger: staking ledger of oracle/candidates.
-WitnessReport: blockstamp of each oracle's last event report.
-OracleCandidates: oracle candidates.
-CurrentEra: Current election era.
-OracleLastRewarded: oracle reward records.
+`Oracles`: acting oracles.
+`OracleLedger`: staking ledger of oracle/candidates.
+`WitnessReport`: blockstamp of each oracle's last event report.
+`OracleCandidates`: oracle candidates.
+`CurrentEra`: Current election era.
+`OracleLastRewarded`: oracle reward records.
 ```
 
 ### Events
