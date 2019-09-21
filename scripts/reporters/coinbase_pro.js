@@ -56,8 +56,12 @@ async function main() {
   });
 
   websocket.on('error', err => {
+    changed = false;
+    websocket.connect();
   });
   websocket.on('close', () => {
+    changed = false;
+    websocket.connect();
   });
 
   while(true){
