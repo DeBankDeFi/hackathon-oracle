@@ -122,12 +122,52 @@ decl_module! {
                 Self::elect_oracles();
                 <CurrentEra<T>>::put(block_number+T::EraDuration::get());
             }
+            Self::release_locked();
         }
 
     }
 }
 
 impl<T: Trait> Module<T>{
+    fn release_locked() {
+        let current_height = <system::Module<T>>::block_number();
+        let current_oracles = Self::oracles();
+        let new_candidates = Self::candidates();
+        let mut all_candidates: Vec<T::AccountId> = Vec::new();
+
+        all_candidates.extend(new_candidates);
+        all_candidates.extend(current_oracles.clone());
+
+        all_candidates.iter().for_each(|who|{
+            let mut ledger = Self::oracle_ledger(who);
+            let mut released = false;
+            ledger.unbonds = ledger.unbonds.into_iter().filter(|x| {
+                if x.era > current_height {
+                    released = true;
+                    false
+                }else{
+                    true
+                }
+            }).collect();
+
+            if released {
+                let mut still_unbonding = <BalanceOf<T>>::default();
+                for unbond in &ledger.unbonds {
+                    still_unbonding += unbond.amount;
+                }
+
+                T::Currency::set_lock(
+                    LockedId,
+                    &who,
+                    ledger.active + still_unbonding,
+                    T::BlockNumber::max_value(),
+                    WithdrawReasons::all(),
+                );
+                <OracleLedger<T>>::insert(who, ledger);
+            }
+        });
+    }
+
     fn slash_and_reward_oracles(block_number: T::BlockNumber){
         let current_oracles = Self::oracles();
 
