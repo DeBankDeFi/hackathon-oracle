@@ -1,70 +1,87 @@
-# Substrate Node Template
+# Oracle Module for Substrate
 
-A new SRML-based Substrate node, ready for hacking.
+An oracle module for substrate, used together with `srml_collective`.
 
-## Build
+## Design Guide Lines
 
-Install Rust:
+1. Oracle management and business logics should be decoupled.
+2. Should follow conventions of `substrate` itself.
 
-```bash
-curl https://sh.rustup.rs -sSf | sh
+## Design
+
+1. Staking/Rewarding/Rewarding
+    * One should stake a specific amount before becoming an oracle.
+    * Oracle will receive rewards if it successfully witnessed an offline event.
+    * Oracle will be slashed if it missed a reporting window.
+    * Oracle can be slashed if major parties determine its malicious activity. (parties such as coucil)
+2. Time Cycles
+    * Oracle Election: oracles will be elected by staking amount every specific duration.
+    * Reporting Cycle: duration in which an oracle should report an event. If so, it'll be paid, if not, it'll be slashed.
+    * Unlock Duration: minimum duration in which oracle's staking balance is locked after its unbonding action.
+
+### Parameters
+
+* Currency: Currency type.
+* OracleFee: The amount of fee that should be paid to each oracle during each reporting cycle.
+* MissReportSlash: The amount that'll be slashed if one oracle missed its reporting window.
+* MinStaking: The minimum amount to stake for an oracle candidate.
+* MaliciousSlashOrigin: The origin that's responsible for slashing malicious oracles.
+* Count: The maxium count of working oracles.
+* ReportInteval: The duration in which oracles should report and be paid.
+* ElectionEra: The duration between oracle elections.
+* LockedDuration: The locked time of staked amount.
+* ChangeMembers: The actual oracle membership management type. (Usually the `srml_collective::Trait`)
+
+
+### Extrinsics
+
+* `bid(amount: Balance)`: bind amount to list as oraclce candidates.
+* `slash_by_vote(who: AcocuntId, amount: Balnace)`: slash oracle by third parties.
+* `unbind(amount: Balance)`: unbind amount.
+
+### Api
+
+```rust
+pub trait OracleMixedIn<T: system::Trait> {
+    fn on_witnessed(who: &T::AccountId);
+    fn is_valid(who: &T::AccountId) -> bool;
+}
 ```
 
-Install required tools:
+### Storage
 
-```bash
-./scripts/init.sh
+```
+Oracles: acting oracles.
+OracleLedger: staking ledger of oracle/candidates.
+WitnessReport: blockstamp of each oracle's last event report.
+OracleCandidates: oracle candidates.
+CurrentEra: Current election era.
+OracleLastRewarded: oracle reward records.
 ```
 
-Build Wasm and native code:
+### Events
+
+
+* `OracleBonded(AccountId, Balance)`: Amount bonded by one oracle.
+* `OracleUnbonded(AccountId, Balance)`: Amount unbonded by one oracle.
+* `OracleSlashed(AccountId, Balance)`: Amount slashed to one oracle.
+* `OraclePaid(AccountId, Balance)`: Amount paid to one oracle.
+* `CandidatesAdded(AccountId)`: Candidate added.
+* `CandidatesRemoved(AccountId)`: Candidate remove.
+* `OracleStakeReleased(AccountId, Balance)`: Amount unlocked for one oracle.
+
+## Example
+
+Current repo has an example of coin price oracle, build use:
 
 ```bash
-cargo build
+$ cargo build
 ```
 
-## Run
-
-### Single node development chain
-
-You can start a development chain with:
+And reporters are listed in `scripts/reporters/`:
 
 ```bash
-cargo run -- --dev
+$ cd scripts/
+$ npm install
+$ node reporters/binance.js ...
 ```
-
-Detailed logs may be shown by running the node with the following environment variables set: `RUST_LOG=debug RUST_BACKTRACE=1 cargo run -- --dev`.
-
-### Multi-node local testnet
-
-If you want to see the multi-node consensus algorithm in action locally, then you can create a local testnet with two validator nodes for Alice and Bob, who are the initial authorities of the genesis chain that have been endowed with testnet units.
-
-Optionally, give each node a name and expose them so they are listed on the Polkadot [telemetry site](https://telemetry.polkadot.io/#/Local%20Testnet).
-
-You'll need two terminal windows open.
-
-We'll start Alice's substrate node first on default TCP port 30333 with her chain database stored locally at `/tmp/alice`. The bootnode ID of her node is `QmRpheLN4JWdAnY7HGJfWFNbfkQCb6tFf4vvA6hgjMZKrR`, which is generated from the `--node-key` value that we specify below:
-
-```bash
-cargo run -- \
-  --base-path /tmp/alice \
-  --chain=local \
-  --alice \
-  --node-key 0000000000000000000000000000000000000000000000000000000000000001 \
-  --telemetry-url ws://telemetry.polkadot.io:1024 \
-  --validator
-```
-
-In the second terminal, we'll start Bob's substrate node on a different TCP port of 30334, and with his chain database stored locally at `/tmp/bob`. We'll specify a value for the `--bootnodes` option that will connect his node to Alice's bootnode ID on TCP port 30333:
-
-```bash
-cargo run -- \
-  --base-path /tmp/bob \
-  --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/QmRpheLN4JWdAnY7HGJfWFNbfkQCb6tFf4vvA6hgjMZKrR \
-  --chain=local \
-  --bob \
-  --port 30334 \
-  --telemetry-url ws://telemetry.polkadot.io:1024 \
-  --validator
-```
-
-Additional CLI usage options are available and may be shown by running `cargo run -- --help`.

@@ -108,7 +108,7 @@ decl_module! {
             Ok(())
         }
 
-        pub fn unbond(origin, amount: BalanceOf<T>) -> Result{
+        pub fn unbind(origin, amount: BalanceOf<T>) -> Result{
             let who = ensure_signed(origin)?;
             Self::unbind(&who, amount)
         }
