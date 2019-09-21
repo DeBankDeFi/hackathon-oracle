@@ -137,6 +137,12 @@ impl<T: Trait> Module<T>{
         current_oracles.iter().chain(new_candidates.iter()).for_each(|who|{
             let mut ledger = Self::oracle_ledger(who);
             let mut released = false;
+
+            let mut total = ledger.active;
+            for unbond in &ledger.unbonds {
+                total += unbond.amount;
+            }
+
             ledger.unbonds = ledger.unbonds.into_iter().filter(|x| {
                 if x.era > current_height {
                     released = true;
@@ -151,15 +157,17 @@ impl<T: Trait> Module<T>{
                 for unbond in &ledger.unbonds {
                     still_unbonding += unbond.amount;
                 }
+                let new_total = ledger.active + still_unbonding;
 
                 T::Currency::set_lock(
                     LockedId,
-                    &who,
-                    ledger.active + still_unbonding,
+                    who,
+                    new_total,
                     T::BlockNumber::max_value(),
                     WithdrawReasons::all(),
                 );
                 <OracleLedger<T>>::insert(who, ledger);
+                Self::deposit_event(RawEvent::OracleStakeReleased(who.clone(), total - new_total));
             }
         });
     }
