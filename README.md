@@ -50,14 +50,12 @@ pub trait OracleMixedIn<T: system::Trait> {
 
 ### Storage
 
-```
-`Oracles`: acting oracles.
-`OracleLedger`: staking ledger of oracle/candidates.
-`WitnessReport`: blockstamp of each oracle's last event report.
-`OracleCandidates`: oracle candidates.
-`CurrentEra`: Current election era.
-`OracleLastRewarded`: oracle reward records.
-```
+* `Oracles`: acting oracles.
+* `OracleLedger`: staking ledger of oracle/candidates.
+* `WitnessReport`: blockstamp of each oracle's last event report.
+* `OracleCandidates`: oracle candidates.
+* `CurrentEra`: Current election era.
+* `OracleLastRewarded`: oracle reward records.
 
 ### Events
 
