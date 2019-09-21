@@ -80,7 +80,7 @@ Current repo has an example of coin price oracle ([link](price/src/lib.rs)), bui
 $ cargo build
 ```
 
-And reporters are listed in `scripts/reporters/`:
+And reporters are listed in [scripts/reporters/](scripts/reporters):
 
 ```bash
 $ cd scripts/
