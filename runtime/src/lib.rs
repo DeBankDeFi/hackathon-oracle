@@ -286,7 +286,7 @@ parameter_types! {
     pub const Count: u16 = 3;
 
     pub const ReportInteval: BlockNumber = 10;
-    pub const EraDuration: BlockNumber = 10;
+    pub const ElectionEra: BlockNumber = 10;
     pub const LockedDuration: BlockNumber = 1000;
 }
 
@@ -306,7 +306,7 @@ impl oracle::Trait for Runtime {
     type Count = Count;
 
     type ReportInteval = ReportInteval;
-    type EraDuration = EraDuration;
+    type ElectionEra = ElectionEra;
     type LockedDuration = LockedDuration;
 
     type ChangeMembers = OracleMembers;
