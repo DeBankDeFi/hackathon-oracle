@@ -133,12 +133,8 @@ impl<T: Trait> Module<T>{
         let current_height = <system::Module<T>>::block_number();
         let current_oracles = Self::oracles();
         let new_candidates = Self::candidates();
-        let mut all_candidates: Vec<T::AccountId> = Vec::new();
 
-        all_candidates.extend(new_candidates);
-        all_candidates.extend(current_oracles.clone());
-
-        all_candidates.iter().for_each(|who|{
+        current_oracles.iter().chain(new_candidates.iter()).for_each(|who|{
             let mut ledger = Self::oracle_ledger(who);
             let mut released = false;
             ledger.unbonds = ledger.unbonds.into_iter().filter(|x| {
@@ -331,5 +327,6 @@ decl_event!(
             CandidatesAdded(AccountId),
             CandidatesRemoved(AccountId),
 
+            OracleStakeReleased(AccountId, Balance),
         }
 );
