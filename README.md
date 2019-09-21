@@ -74,7 +74,7 @@ pub trait OracleMixedIn<T: system::Trait> {
 
 ## Example
 
-Current repo has an example of coin price oracle, build use:
+Current repo has an example of coin price oracle ([link](price/src/lib.rs)), build use:
 
 ```bash
 $ cargo build
