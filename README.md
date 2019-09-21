@@ -39,7 +39,7 @@ An oracle module for substrate, used together with `srml_collective`.
 * `slash_by_vote(who: AcocuntId, amount: Balnace)`: slash oracle by third parties.
 * `unbind(amount: Balance)`: unbind amount.
 
-### Api
+### Public Trait
 
 ```rust
 pub trait OracleMixedIn<T: system::Trait> {
