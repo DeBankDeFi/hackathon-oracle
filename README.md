@@ -13,7 +13,7 @@ An oracle module for substrate, used together with `srml_collective`.
     * One should stake a specific amount before becoming an oracle.
     * Oracle will receive rewards if it successfully witnessed an offline event.
     * Oracle will be slashed if it missed a reporting window.
-    * Oracle can be slashed by major parties determine its malicious activity. (parties such as coucil)
+    * Oracle can be slashed by major parties determine its malicious activity. (parties such as council)
 2. Oracle Election: oracles will be elected by staking amount every specific duration.
 3. Reporting Cycle: an oracle should report an event in a specific duration. If so, it'll be paid, if not, it'll be slashed.
 4. Unlock Duration: an oracle's staked coin will not be unlocked until a future time.
