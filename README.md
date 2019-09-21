@@ -9,17 +9,17 @@ An oracle module for substrate, used together with `srml_collective`.
 
 ## Design
 
-1. Staking/Rewarding/Rewarding
+1. Staking/Rewarding/Slashing
     * One should stake a specific amount before becoming an oracle.
     * Oracle will receive rewards if it successfully witnessed an offline event.
     * Oracle will be slashed if it missed a reporting window.
-    * Oracle can be slashed if major parties determine its malicious activity. (parties such as coucil)
-2. Time Cycles
-    * Oracle Election: oracles will be elected by staking amount every specific duration.
-    * Reporting Cycle: duration in which an oracle should report an event. If so, it'll be paid, if not, it'll be slashed.
-    * Unlock Duration: minimum duration in which oracle's staking balance is locked after its unbonding action.
+    * Oracle can be slashed by major parties determine its malicious activity. (parties such as coucil)
+2. Oracle Election: oracles will be elected by staking amount every specific duration.
+3. Reporting Cycle: an oracle should report an event in a specific duration. If so, it'll be paid, if not, it'll be slashed.
+4. Unlock Duration: an oracle's staked coin will not be unlocked until a future time.
 
-### Parameters
+## Usage
+### Initial Parameters
 
 * `Currency`: Currency type.
 * `OracleFee`: The amount of fee that should be paid to each oracle during each reporting cycle.
@@ -32,7 +32,6 @@ An oracle module for substrate, used together with `srml_collective`.
 * `LockedDuration`: The locked time of staked amount.
 * `ChangeMembers`: The actual oracle membership management type. (Usually the `srml_collective::Trait`)
 
-
 ### Extrinsics
 
 * `bid(amount: Balance)`: bind amount to list as oraclce candidates.
@@ -41,9 +40,14 @@ An oracle module for substrate, used together with `srml_collective`.
 
 ### Public Trait
 
+Oracle module has implemented the following trait. Business module should use this trait to
+communicate with oracle module.
+
 ```rust
 pub trait OracleMixedIn<T: system::Trait> {
+    /// tell oracle module that an event is reported by a speicifc oracle.
     fn on_witnessed(who: &T::AccountId);
+    /// predicate if one oracle is valid.
     fn is_valid(who: &T::AccountId) -> bool;
 }
 ```
