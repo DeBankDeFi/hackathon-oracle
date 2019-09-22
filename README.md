@@ -2,6 +2,7 @@
 
 An [oracle](oracle) module for substrate, used together with `srml_collective`.
 
+* substrate version: `polkadot-master`
 * demo page: [https://oracle.debank.com/](https://oracle.debank.com/)
 * ws: `wss://test-api.debank.io:2053/oracle/`
 
