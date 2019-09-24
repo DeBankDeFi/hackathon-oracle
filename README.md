@@ -6,6 +6,8 @@ An [oracle](oracle) module for substrate, used together with `srml_collective`.
 * demo page: [https://oracle.debank.com/](https://oracle.debank.com/)
 * ws: `wss://test-api.debank.io:2053/oracle/`
 
+Under testing...
+
 ## Design Guide Lines
 
 1. Oracle management and business logics should be decoupled.
